@@ -8,7 +8,7 @@ app.use(express.json());
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const bot = new TelegramBot(token);
 
-const WEBHOOK_URL = "https://myfirstbotinjs-production.up.railway.app"; // O'zingizning Railway domeningizni kiriting
+const WEBHOOK_URL = "https://myfirstbotinjs-production.up.railway.app/";
 
 bot.setWebHook(`${WEBHOOK_URL}/bot${token}`);
 
