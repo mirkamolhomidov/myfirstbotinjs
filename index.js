@@ -1,67 +1,17 @@
-require('dotenv').config();
+require("dotenv").config();
 const TelegramBot = require("node-telegram-bot-api");
 
-const token = process.env.BOT_TOKEN;
-const bot = new TelegramBot(token, { polling: true });
+console.log("TOKEN:", process.env.TELEGRAM_BOT_TOKEN); // Tokenni tekshirish uchun
 
-const gameOptions = {
-    reply_markup: {
-        inline_keyboard: [
-            [
-                {
-                    text: "1", callback_data: "button value"
-                },
-                {
-                    text: "2", callback_data: "button value"
-                },
-                {
-                    text: "3", callback_data: "button value"
-                },
-                {
-                    text: "4", callback_data: "button value"
-                }
-            ],
-            [
-                {
-                    text: "5", callback_data: "button value"
-                },
-                {
-                    text: "6", callback_data: "button value"
-                },
-                {
-                    text: "7", callback_data: "button value"
-                },
-                {
-                    text: "8", callback_data: "button value"
-                }
-            ]
-        ]
-    }
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+    console.error("❌ TOKEN mavjud emas! .env ni tekshiring.");
+    process.exit(1);
 }
 
-const mybotfunction = () => {
-    bot.setMyCommands([
-        {
-            command: '/start',
-            description: 'Botni yangilash♻️'
-        },
-        {
-            command: '/info',
-            description: 'Bot haqida to\'liqroq malumot olish 🗯️'
-        }
-    ])
-    bot.on('message', async msg => {
-        const text = msg.text;
-        const chatId = msg.chat.id;
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
-        if (text === "/start") {
-            return bot.sendMessage(chatId, `Assalomun Alaykum ${msg.from?.first_name} sizni botimizda ko'rganimizdan xursandmiz !`);
-        } else if (text === "/info") {
-            return bot.sendMessage(chatId, 'Bu bot birinchi marta @homidovmirkamol tomonidan yaratildi !', gameOptions)
-        } else {
-            return bot.sendMessage(chatId, 'Noto\'g\'ri buyruq kiritildi !');
-        }
-    });
-}
+bot.on("message", (msg) => {
+    bot.sendMessage(msg.chat.id, "✅ Bot ishlayapti! 🚀");
+});
 
-mybotfunction();
+console.log("✅ Bot ishga tushdi...");
