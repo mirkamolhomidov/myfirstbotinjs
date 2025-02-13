@@ -1,23 +1,17 @@
 require("dotenv").config();
 const TelegramBot = require("node-telegram-bot-api");
-const express = require("express");
-
-const app = express();
-app.use(express.json());
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const bot = new TelegramBot(token);
 
-const WEBHOOK_URL = "https://myfirstbotinjs-production.up.railway.app/";
+if (!token) {
+    console.error("❌ TOKEN mavjud emas! .env faylni tekshiring.");
+    process.exit(1);
+}
 
-bot.setWebHook(`${WEBHOOK_URL}/bot${token}`);
+const bot = new TelegramBot(token, { polling: true });
 
-app.post(`/bot${token}`, (req, res) => {
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
+bot.on("message", (msg) => {
+    bot.sendMessage(msg.chat.id, "✅ Bot ishlayapti! 🚀");
 });
 
-console.log("✅ Bot webhook orqali ishlayapti...");
-app.listen(3000, () => {
-    console.log("🚀 Server 3000-portda ishga tushdi");
-});
+console.log("✅ Bot ishga tushdi...");
