@@ -4,7 +4,7 @@ require('dotenv').config();
 
 const app = express();
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const bot = new TelegramBot(token, { webHook: { port: process.env.PORT || 3000 } });
+const bot = new TelegramBot(token, { webHook: { port: process.env.PORT } });
 
 const webHookUrl = 'https://myfirstbotinjs.onrender.com/webhook';
 bot.setWebHook(webHookUrl);
@@ -53,6 +53,6 @@ bot.on('message', async msg => {
     }
 });
 
-app.listen(process.env.PORT || 3000, () => {
+app.listen(process.env.PORT, () => {
     console.log('Bot is running...');
 });
