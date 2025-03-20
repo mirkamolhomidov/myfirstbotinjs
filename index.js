@@ -8,6 +8,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import cron from 'node-cron';
+import { fileURLToPath } from 'url';
+
+// __dirname ni ES modules uchun aniqlash
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Cookies faylining toʻliq yoʻli
+const cookiesPath = path.join(__dirname, 'cookies.txt');
 
 // Muhit o'zgaruvchilari
 const TOKEN = process.env.TELEGRAM_TOKEN;
@@ -77,7 +85,8 @@ bot.on('message', async (msg) => {
                 console.log("Shorts URL aniqlandi. Normalizatsiya qilingan URL:", processedUrl);
             }
 
-            const videoInfo = await youtubedl(processedUrl, { dumpSingleJson: true });
+            // Ma'lumotlarni olishda cookies ni ham qo'llaymiz
+            const videoInfo = await youtubedl(processedUrl, { dumpSingleJson: true, cookies: cookiesPath });
 
             if (!videoInfo || !videoInfo.title) {
                 throw new Error("YouTube ma'lumotlarini olishda muammo yuz berdi.");
@@ -125,7 +134,7 @@ bot.on('callback_query', async (query) => {
     const loadingMessage = await bot.sendMessage(chatId, "🔄 Yuklanmoqda, iltimos kuting...");
 
     try {
-        const videoInfo = await youtubedl(videoUrl, { dumpSingleJson: true });
+        const videoInfo = await youtubedl(videoUrl, { dumpSingleJson: true, cookies: cookiesPath });
 
         if (!videoInfo || !videoInfo.title) {
             throw new Error("YouTube ma'lumotlarini olishda muammo yuz berdi.");
@@ -139,7 +148,7 @@ bot.on('callback_query', async (query) => {
             await youtubedl(videoUrl, {
                 output: videoPath,
                 format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
-                cookies: './cookies.txt'
+                cookies: cookiesPath
             });
             if (fs.existsSync(videoPath)) {
                 const videoStream = fs.createReadStream(videoPath);
@@ -154,7 +163,7 @@ bot.on('callback_query', async (query) => {
                 output: audioPath,
                 extractAudio: true,
                 audioFormat: 'mp3',
-                cookies: './cookies.txt'
+                cookies: cookiesPath
             });
             if (fs.existsSync(audioPath)) {
                 const audioStream = fs.createReadStream(audioPath);
