@@ -1,10 +1,10 @@
-const TelegramBot = require('node-telegram-bot-api');
-const express = require('express');
-const youtubedl = require('youtube-dl-exec');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const cron = require('node-cron');
+import TelegramBot from 'node-telegram-bot-api';
+import express from 'express';
+import youtubedl from 'youtube-dl-exec';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import cron from 'node-cron';
 
 const TOKEN = process.env.TELEGRAM_TOKEN;
 const URL = process.env.BASE_URL;
@@ -122,35 +122,39 @@ function isValidYouTubeUrl(url) {
 }
 
 // Vaqtinchalik fayllarni avtomatik tozalash
-cron.schedule('0 0 * * *', () => {
-    const tempDir = os.tmpdir();
-    fs.readdir(tempDir, (err, files) => {
-        if (err) {
-            console.error('Vaqtinchalik fayllarni o\'qishda xatolik:', err);
-            return;
-        }
-        files.forEach(file => {
-            const filePath = path.join(tempDir, file);
-            fs.stat(filePath, (err, stats) => {
-                if (err) {
-                    console.error('Fayl ma\'lumotlarini olishda xatolik:', err);
-                    return;
-                }
-                const now = new Date().getTime();
-                const endTime = new Date(stats.mtime).getTime() + 24 * 60 * 60 * 1000;
-                if (now > endTime) {
-                    fs.unlink(filePath, err => {
-                        if (err) console.error('Faylni o\'chirishda xatolik:', err);
-                        else console.log(`Fayl o'chirildi: ${filePath}`);
-                    });
-                }
+cron.schedule(
+    '0 0 * * *',
+    () => {
+        const tempDir = os.tmpdir();
+        fs.readdir(tempDir, (err, files) => {
+            if (err) {
+                console.error("Vaqtinchalik fayllarni o'qishda xatolik:", err);
+                return;
+            }
+            files.forEach((file) => {
+                const filePath = path.join(tempDir, file);
+                fs.stat(filePath, (err, stats) => {
+                    if (err) {
+                        console.error("Fayl ma'lumotlarini olishda xatolik:", err);
+                        return;
+                    }
+                    const now = Date.now();
+                    const endTime = new Date(stats.mtime).getTime() + 24 * 60 * 60 * 1000;
+                    if (now > endTime) {
+                        fs.unlink(filePath, (err) => {
+                            if (err) console.error("Faylni o'chirishda xatolik:", err);
+                            else console.log(`Fayl o'chirildi: ${filePath}`);
+                        });
+                    }
+                });
             });
         });
-    });
-}, {
-    scheduled: true,
-    timezone: "Asia/Tashkent"
-});
+    },
+    {
+        scheduled: true,
+        timezone: "Asia/Tashkent",
+    }
+);
 
 app.listen(PORT, () => {
     console.log(`Server portda: ${PORT}`);
