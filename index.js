@@ -1,58 +1,55 @@
-const express = require('express');
-const TelegramBot = require('node-telegram-bot-api');
-require('dotenv').config();
+import TelegramBot from 'node-telegram-bot-api';
+import express from 'express';
+import dotenv from 'dotenv';
+import youtubedl from 'youtube-dl-exec';
+import fs from 'fs';
+import ffmpegPath from 'ffmpeg-static';
 
+dotenv.config();
+
+const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { webHook: { port: 3000 } });
 const app = express();
-const token = process.env.TELEGRAM_BOT_TOKEN;
-const bot = new TelegramBot(token); // <-- FAQAT shunday bo'lishi kerak
 
-const webHookUrl = 'https://myfirstbotinjs.onrender.com/webhook';
-bot.setWebHook(webHookUrl);
-
+bot.setWebHook(`${process.env.BASE_URL}/bot${process.env.TELEGRAM_TOKEN}`);
 app.use(express.json());
 
-app.post('/webhook', (req, res) => {
+app.post(`/bot${process.env.TELEGRAM_TOKEN}`, (req, res) => {
     bot.processUpdate(req.body);
     res.sendStatus(200);
 });
 
-const gameOptions = {
-    reply_markup: {
-        inline_keyboard: [
-            [
-                { text: "1", callback_data: "button value" },
-                { text: "2", callback_data: "button value" },
-                { text: "3", callback_data: "button value" },
-                { text: "4", callback_data: "button value" }
-            ],
-            [
-                { text: "5", callback_data: "button value" },
-                { text: "6", callback_data: "button value" },
-                { text: "7", callback_data: "button value" },
-                { text: "8", callback_data: "button value" }
-            ]
-        ]
-    }
-}
-
-bot.setMyCommands([
-    { command: '/start', description: 'Botni yangilash♻️' },
-    { command: '/info', description: 'Bot haqida to\'liqroq ma\'lumot olish 🗯️' }
-]);
-
-bot.on('message', async msg => {
-    const text = msg.text;
+bot.onText(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/, async (msg) => {
     const chatId = msg.chat.id;
+    const url = msg.text;
 
-    if (text === "/start") {
-        return bot.sendMessage(chatId, `Assalomun Alaykum ${msg.from?.first_name} sizni botimizda ko'rganimizdan xursandmiz!`);
-    } else if (text === "/info") {
-        return bot.sendMessage(chatId, 'Bu bot birinchi marta @homidovmirkamol tomonidan yaratildi!', gameOptions);
-    } else {
-        return bot.sendMessage(chatId, 'Noto\'g\'ri buyruq kiritildi!');
+    const loadingMsg = await bot.sendMessage(chatId, '🎥 Video yuklanmoqda...');
+
+    const output = `video-${Date.now()}.mp4`;
+
+    try {
+        await youtubedl(url, {
+            output,
+            format: 'best[ext=mp4]',
+            ffmpegLocation: ffmpegPath,
+        });
+
+        await bot.sendVideo(chatId, output, {
+            caption: '✅ Video yuklandi!',
+        });
+
+        fs.unlinkSync(output); // vaqtinchalik faylni o'chirish
+        bot.deleteMessage(chatId, loadingMsg.message_id); // Yuklanmoqda xabarini o'chirish
+
+    } catch (error) {
+        console.error(error);
+        bot.sendMessage(chatId, '❌ Video yuklab bo‘lmadi.');
     }
 });
 
-app.listen(process.env.PORT || 3000, '0.0.0.0', () => {
-    console.log('Bot is running...');
+app.get('/', (req, res) => {
+    res.send('Server ishlayapti...');
+});
+
+app.listen(10000, () => {
+    console.log('Server portda: 10000');
 });
