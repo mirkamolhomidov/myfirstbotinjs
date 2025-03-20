@@ -14,26 +14,53 @@ const TOKEN = process.env.TELEGRAM_TOKEN;
 const URL = process.env.BASE_URL;
 const PORT = process.env.PORT || 3000;
 
-// Bot va Express instansiyasi
 const app = express();
 const bot = new TelegramBot(TOKEN, { polling: false });
 
 app.use(express.json());
 
-// Webhookni sozlash
+/*
+  URL ni normalizatsiya qilish:
+  Agar URL ichida "/shorts/" bo'lsa, uni oddiy watch URL-ga aylantiradi.
+*/
+function normalizeYouTubeUrl(url) {
+    if (url.includes('/shorts/')) {
+        try {
+            const parts = url.split('/shorts/');
+            const idPart = parts[1]?.split('?')[0];
+            if (idPart) {
+                return `https://www.youtube.com/watch?v=${idPart}`;
+            }
+        } catch (err) {
+            console.error("URL normalizatsiya qilishda xatolik:", err);
+        }
+    }
+    return url;
+}
+
+/*
+  URL ni Shorts video ekanligini tekshiruvchi funksiya
+*/
+function isShortsUrl(url) {
+    return url.includes('/shorts/');
+}
+
+/*
+  YouTube havolasining umumiy formatini tekshiradigan funksiya.
+*/
+function isValidYouTubeUrl(url) {
+    const regex = /^(https?\:\/\/)?((www\.)?youtube\.com|youtu\.?be)\/.+$/;
+    return regex.test(url);
+}
+
+// Webhook va Express sozlamalari
 app.post('/bot', (req, res) => {
     bot.processUpdate(req.body);
     res.sendStatus(200);
 });
 bot.setWebHook(`${URL}/bot`);
 
-// YouTube havolasini tekshiruvchi funksiya
-function isValidYouTubeUrl(url) {
-    const regex = /^(https?\:\/\/)?((www\.)?youtube\.com|youtu\.?be)\/.+$/;
-    return regex.test(url);
-}
-
-// Xabarlarni boshqarish
+// Xabarlarni qabul qilish (message event)
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
@@ -43,8 +70,14 @@ bot.on('message', async (msg) => {
     } else if (isValidYouTubeUrl(text)) {
         const loadingMessage = await bot.sendMessage(chatId, "🔄 Yuklanmoqda, iltimos kuting...");
         try {
-            // YouTube ma'lumotlarini olish
-            const videoInfo = await youtubedl(text, { dumpSingleJson: true });
+            // URL turini aniqlab, Shorts bo'lsa normalize qilamiz
+            let processedUrl = text;
+            if (isShortsUrl(text)) {
+                processedUrl = normalizeYouTubeUrl(text);
+                console.log("Shorts URL aniqlandi. Normalizatsiya qilingan URL:", processedUrl);
+            }
+
+            const videoInfo = await youtubedl(processedUrl, { dumpSingleJson: true });
 
             if (!videoInfo || !videoInfo.title) {
                 throw new Error("YouTube ma'lumotlarini olishda muammo yuz berdi.");
@@ -60,7 +93,6 @@ bot.on('message', async (msg) => {
             if (formats.length > 0) {
                 inlineKeyboard.push([{ text: '🎥 Video yuklab olish', callback_data: `video_${videoId}` }]);
             }
-
             if (audioFormats.length > 0) {
                 inlineKeyboard.push([{ text: '🎵 MP3 yuklab olish', callback_data: `mp3_${videoId}` }]);
             }
@@ -82,7 +114,7 @@ bot.on('message', async (msg) => {
     }
 });
 
-// Callback funksiyasi
+// Inline tugmalar (callback_query event) orqali yuklash
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
@@ -114,7 +146,7 @@ bot.on('callback_query', async (query) => {
                 await bot.sendVideo(chatId, videoStream, { title: videoTitle });
                 fs.unlinkSync(videoPath);
             } else {
-                await bot.sendMessage(chatId, "❌ Video yuklashda muammo yuz berdi.");
+                await bot.sendMessage(chatId, "❌ Video yuklab olishda muammo yuz berdi.");
             }
         } else if (action === 'mp3') {
             const audioPath = path.join(tempDir, `${videoTitle}.mp3`);
@@ -129,7 +161,7 @@ bot.on('callback_query', async (query) => {
                 await bot.sendAudio(chatId, audioStream, { title: videoTitle });
                 fs.unlinkSync(audioPath);
             } else {
-                await bot.sendMessage(chatId, "❌ MP3 yuklashda muammo yuz berdi.");
+                await bot.sendMessage(chatId, "❌ MP3 yuklab olishda muammo yuz berdi.");
             }
         }
     } catch (error) {
@@ -140,7 +172,7 @@ bot.on('callback_query', async (query) => {
     }
 });
 
-// Vaqtinchalik fayllarni tozalash
+// Vaqtinchalik fayllarni avtomatik tozalash
 cron.schedule(
     '0 0 * * *',
     () => {
