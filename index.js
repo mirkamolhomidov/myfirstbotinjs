@@ -117,7 +117,7 @@ bot.on('callback_query', async (query) => {
 });
 
 function isValidYouTubeUrl(url) {
-    const regex = /^(https?\:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+$/;
+    const regex = /^(https?\:\/\/)?((www\.)?youtube\.com|youtu\.?be)\/.+$/;
     return regex.test(url);
 }
 
