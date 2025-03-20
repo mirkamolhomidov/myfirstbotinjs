@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import TelegramBot from 'node-telegram-bot-api';
 import express from 'express';
 import youtubedl from 'youtube-dl-exec';
@@ -6,32 +9,47 @@ import * as path from 'path';
 import * as os from 'os';
 import cron from 'node-cron';
 
+// Muhit o'zgaruvchilari
 const TOKEN = process.env.TELEGRAM_TOKEN;
 const URL = process.env.BASE_URL;
 const PORT = process.env.PORT || 3000;
 
+// Bot va Express instansiyasi
 const app = express();
 const bot = new TelegramBot(TOKEN, { polling: false });
 
 app.use(express.json());
 
+// Webhookni sozlash
 app.post('/bot', (req, res) => {
     bot.processUpdate(req.body);
     res.sendStatus(200);
 });
-
 bot.setWebHook(`${URL}/bot`);
 
+// YouTube havolasini tekshiruvchi funksiya
+function isValidYouTubeUrl(url) {
+    const regex = /^(https?\:\/\/)?((www\.)?youtube\.com|youtu\.?be)\/.+$/;
+    return regex.test(url);
+}
+
+// Xabarlarni boshqarish
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
     if (text === '/start') {
-        bot.sendMessage(chatId, "Salom! YouTube'dan video yoki mp3 yuklab olish uchun video havolasini yuboring.");
+        bot.sendMessage(chatId, "Salom! YouTube'dan video yoki MP3 yuklab olish uchun video havolasini yuboring.");
     } else if (isValidYouTubeUrl(text)) {
         const loadingMessage = await bot.sendMessage(chatId, "🔄 Yuklanmoqda, iltimos kuting...");
         try {
+            // YouTube ma'lumotlarini olish
             const videoInfo = await youtubedl(text, { dumpSingleJson: true });
+
+            if (!videoInfo || !videoInfo.title) {
+                throw new Error("YouTube ma'lumotlarini olishda muammo yuz berdi.");
+            }
+
             const videoTitle = videoInfo.title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 20);
             const videoId = videoInfo.id;
             const formats = videoInfo.formats.filter(f => f.ext === 'mp4' && f.vcodec !== 'none');
@@ -64,6 +82,7 @@ bot.on('message', async (msg) => {
     }
 });
 
+// Callback funksiyasi
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
@@ -75,6 +94,11 @@ bot.on('callback_query', async (query) => {
 
     try {
         const videoInfo = await youtubedl(videoUrl, { dumpSingleJson: true });
+
+        if (!videoInfo || !videoInfo.title) {
+            throw new Error("YouTube ma'lumotlarini olishda muammo yuz berdi.");
+        }
+
         const videoTitle = videoInfo.title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 20);
         const tempDir = os.tmpdir();
 
@@ -116,12 +140,7 @@ bot.on('callback_query', async (query) => {
     }
 });
 
-function isValidYouTubeUrl(url) {
-    const regex = /^(https?\:\/\/)?((www\.)?youtube\.com|youtu\.?be)\/.+$/;
-    return regex.test(url);
-}
-
-// Vaqtinchalik fayllarni avtomatik tozalash
+// Vaqtinchalik fayllarni tozalash
 cron.schedule(
     '0 0 * * *',
     () => {
